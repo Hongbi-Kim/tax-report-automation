@@ -1,0 +1,461 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>{{ firm.report_title }} · {{ C.basic.name.text }} · {{ cy }}</title>
+<style>
+  @page {
+    size: A4; margin: 18mm 16mm 20mm 16mm;
+    @bottom-left { content: "{{ firm.issuer_label }}  ·  {{ C.basic.name.text }} {{ cy }} 사업연도"; font: 7.5pt "Pretendard", sans-serif; color: #6b7280; }
+    @bottom-right { content: counter(page) " / " counter(pages); font: 7.5pt "Pretendard", sans-serif; color: #6b7280; }
+  }
+  @page cover { margin: 0; @bottom-left { content: none; } @bottom-right { content: none; } }
+  :root { --ink:#1f2937; --muted:#6b7280; --line:#d1d5db; --soft:#f3f4f6; --accent:#1e3a5f; --chk:#b42318; --cf:#b54708; --as:#1d4ed8; }
+  * { box-sizing: border-box; }
+  body { font-family: "Pretendard", "Apple SD Gothic Neo", sans-serif; color: var(--ink); font-size: 9.2pt; line-height: 1.55; margin: 0; background:#fff; }
+  .cover { page: cover; height: 297mm; padding: 38mm 22mm 24mm; display: flex; flex-direction: column; break-after: page; }
+  .cover .kicker { color: var(--accent); font-weight: 600; letter-spacing: .08em; font-size: 10pt; }
+  .cover h1 { font-size: 30pt; margin: 6mm 0 2mm; letter-spacing: -.02em; }
+  .cover .co { font-size: 15pt; font-weight: 600; margin-top: 12mm; }
+  .cover .meta { margin-top: 4mm; color: var(--muted); font-size: 10pt; line-height: 1.8; }
+  .cover .rule { height: 3px; width: 28mm; background: var(--accent); margin: 8mm 0; }
+  .cover .legend { margin-top: auto; font-size: 8.5pt; color: var(--muted); border-top: 1px solid var(--line); padding-top: 5mm; }
+  .cover .issuer { font-size: 11pt; font-weight: 600; color: var(--accent); margin-top: 6mm; }
+  .cover .warnsum { margin-top: 6mm; border: 1px solid var(--line); border-left: 3px solid var(--chk); padding: 3mm 4mm; font-size: 9pt; }
+  h2 { font-size: 13.5pt; color: var(--accent); margin: 0 0 3mm; padding-bottom: 1.5mm; border-bottom: 2px solid var(--accent); break-after: avoid; }
+  h3 { font-size: 10.5pt; margin: 5mm 0 2mm; break-after: avoid; }
+  section { margin-bottom: 8mm; }
+  section.newpage { break-before: page; }
+  p { margin: 0 0 2mm; }
+  table { width: 100%; border-collapse: collapse; margin: 1.5mm 0 3mm; font-size: 8.6pt; }
+  thead { display: table-header-group; }
+  th { white-space: nowrap; background: var(--soft); font-weight: 600; text-align: center; border-top: 1.5px solid var(--ink); border-bottom: 1px solid var(--ink); padding: 1.6mm 1.8mm; }
+  td { border-bottom: 1px solid var(--line); padding: 1.3mm 1.8mm; vertical-align: top; }
+  tr { break-inside: avoid; }
+  td.n { text-align: right; white-space: nowrap; }
+  td.c { text-align: center; }
+  td.id { white-space: nowrap; text-align: center; }
+  td.src, .src { color: var(--muted); font-size: 7.4pt; }
+  tr.l0 td { font-weight: 700; background: #fafafa; }
+  tr.l1 td:first-child { padding-left: 4mm; font-weight: 600; }
+  tr.l2 td:first-child { padding-left: 7mm; }
+  tr.l3 td:first-child { padding-left: 10mm; color: #4b5563; }
+  .chk { color: var(--chk); font-weight: 600; white-space: nowrap; }
+  .blank { color: #9ca3af; }
+  sup.cf { color: var(--cf); font-weight: 700; } sup.as { color: var(--as); font-weight: 700; } sup.w { color: var(--chk); font-weight: 700; }
+  .note { font-size: 8pt; color: var(--muted); margin: 1mm 0 2mm; }
+  .box { border: 1px solid var(--line); border-left: 3px solid var(--accent); background: #f8fafc; padding: 2.5mm 3.5mm; margin: 2mm 0 3mm; break-inside: avoid; }
+  .box.warn { border-left-color: var(--cf); background: #fffbeb; }
+  .box.chkbox { border-left-color: var(--chk); background: #fef2f2; }
+  .box b { display: block; margin-bottom: 1mm; }
+  .comment { margin-bottom: 4mm; break-inside: avoid; }
+  .comment h3 { margin-top: 3mm; }
+  .comment .src { margin-top: 1mm; }
+  .kv td:first-child { width: 32%; color: #374151; background: #fafafa; font-weight: 600; }
+  .small { font-size: 7.6pt; }
+  .tag { white-space: nowrap; display: inline-block; padding: 0 1.5mm; border-radius: 1mm; font-size: 7.4pt; font-weight: 600; }
+  .t-ok { background: #ecfdf3; color: #067647; } .t-bad { background: #fef3f2; color: var(--chk); } .t-ref { background: #eff6ff; color: #1d4ed8; }
+  .t-ans { background: #ecfdf3; color: #067647; } .t-unc { background: #fffaeb; color: var(--cf); } .t-none { background: #f2f4f7; color: #475467; }
+  ol.toc { padding-left: 5mm; line-height: 2; font-size: 10pt; }
+  .chart { break-inside: avoid; margin: 2mm 0 4mm; }
+  .chart .ttl { font-weight: 600; font-size: 9pt; margin-bottom: 1mm; }
+  .chart img { width: 100%; }
+</style>
+</head>
+<body>
+{% set nwarn = warnings | length %}
+
+<!-- ═════════ 표지 ═════════ -->
+<div class="cover">
+  <div class="kicker">CORPORATE TAX ANALYSIS REPORT</div>
+  <h1>{{ firm.report_title }}</h1>
+  <div class="rule"></div>
+  <div class="co">{{ C.basic.name.text }}</div>
+  <div class="meta">
+    {{ C.basic.term.text }} 사업연도 {{ C.basic.period.text | replace("~", " ~ ") }}<br>
+    비교 대상: {{ P.basic.term.text }} 사업연도 {{ P.basic.period.text | replace("~", " ~ ") }}<br>
+    사업자등록번호 {{ C.basic.biz_no.text }}
+  </div>
+  <ol class="toc">
+    <li>기본정보</li><li>표준재무제표 (재무상태표, 손익계산서, 주요 지표, 요약 손익 비교, 판관비 주요 항목)</li><li>법인세 신고상황</li><li>이월결손금</li>
+    <li>소득금액조정</li><li>공제·감면세액</li><li>요약 코멘트 (그래프 포함)</li><li>재무제표 주요 특이사항</li>
+  </ol>
+  {% if nwarn %}
+  <div class="warnsum"><b>검증 경고 {{ nwarn }}건</b> — PDF에서 확인되지 않은 값(회색 처리·글자 표기 등)과 서식 간 차이는 확정값으로 쓰지 않고 «확인 필요» 또는 차이 표시로 남겼습니다. 위치는 부록 B 경고 목록에 있습니다.</div>
+  {% endif %}
+  <div class="legend">
+    <b>읽는 법</b> — 모든 값은 아래 두 PDF에서 읽은 것이며, 표의 ‘근거’ 열과 부록 근거 대장에 서식·페이지를 남겼습니다.
+    「–」 서식 칸이 비어 있음 · <span class="chk">«확인 필요»</span> 자료만으로 확정할 수 없음(의존 계산도 보류) ·
+    <sup class="cf">※</sup> 자료 간 차이가 있으나 원문 값 그대로 표시 · <sup class="as">A</sup> 가정 적용(부록 A)<br>
+    근거 파일: {{ files.current }} / {{ files.prior }}
+    <div class="issuer">{{ firm.issuer }} 발행</div>
+  </div>
+</div>
+
+<!-- ═════════ I ═════════ -->
+<section>
+  <h2>Ⅰ. 기본정보</h2>
+  <table class="kv">
+    <thead><tr><th>항목</th><th>내용</th><th>근거</th></tr></thead>
+    {% for r in basic_rows %}
+    <tr><td>{{ r.label }}</td><td>{{ r.v | fv }}</td><td class="src">{{ r.v | cite }}</td></tr>
+    {% endfor %}
+  </table>
+  <p class="note">* {{ basic_note }}</p>
+</section>
+
+<!-- ═════════ II ═════════ -->
+<section class="newpage">
+  <h2>Ⅱ. 표준재무제표</h2>
+  <p class="note">* 각 사업연도 세무조정계산서에 첨부된 표준재무상태표·표준손익계산서의 값과 계정명을 그대로 사용했습니다(결산서 숫자로 바꾸지 않음).
+  {% if r12_ok %}결산서 재무상태표·손익계산서와 대분류 금액이 일치합니다(대사 R12).{% else %}결산서와 차이가 있는 항목은 <sup class="w">W</sup>로 표시하고 부록 B에 적었습니다.{% endif %}
+  금액이 있는 계정과 확인이 필요한 계정을 표시하며, 단위는 원입니다.</p>
+  <h3>(1) 표준재무상태표</h3>
+  <table>
+    <thead><tr><th style="width:42%">계정과목</th><th>{{ py }} 사업연도 (원)</th><th>{{ cy }} 사업연도 (원)</th><th>코드</th><th>근거 ({{ py }} / {{ cy }})</th></tr></thead>
+    {% for r in bs_rows %}
+    <tr class="l{{ r.level }}"><td>{{ r.label }}</td>
+      <td class="n">{{ r.prior | fv }}{% if (py, r.code) in diff_notes %}<sup class="w">W</sup>{% endif %}</td>
+      <td class="n">{{ r.cur | fv }}{% if (cy, r.code) in diff_notes %}<sup class="w">W</sup>{% endif %}</td>
+      <td class="c src">{{ r.code }}</td><td class="src c">{{ r.src_pc }}</td></tr>
+    {% endfor %}
+  </table>
+  <h3>(2) 표준손익계산서</h3>
+  <table>
+    <thead><tr><th style="width:42%">계정과목</th><th>{{ py }} 사업연도 (원)</th><th>{{ cy }} 사업연도 (원)</th><th>코드</th><th>근거 ({{ py }} / {{ cy }})</th></tr></thead>
+    {% for r in is_rows %}
+    <tr class="l{{ r.level }}"><td>{{ r.label }}</td>
+      <td class="n">{{ r.prior | fv }}{% if (py, r.code) in diff_notes %}<sup class="w">W</sup>{% endif %}</td>
+      <td class="n">{{ r.cur | fv }}{% if (cy, r.code) in diff_notes %}<sup class="w">W</sup>{% endif %}</td>
+      <td class="c src">{{ r.code }}</td><td class="src c">{{ r.src_pc }}</td></tr>
+    {% endfor %}
+  </table>
+  {% if diff_notes %}
+  <div class="box warn"><b>W 표준서식과 결산서의 차이</b>
+  {% for k, t in diff_notes.items() %}{{ k[0] }} 코드{{ k[1] }}: {{ t }}{% if not loop.last %} · {% endif %}{% endfor %}.
+  같은 항목(같은 범위)의 값이 서로 다르며, 근거 없이 한쪽으로 덮어쓰지 않고 표준서식 값을 표시했습니다.</div>
+  {% endif %}
+
+  <h3>(3) 주요 지표 비교 (분석 지표)</h3>
+  <table>
+    <thead><tr><th style="width:22%">구분</th><th>{{ py }} 사업연도 (억원)</th><th>{{ cy }} 사업연도 (억원)</th><th>증감 (억원)</th><th>{{ py }} 사업연도 (원)</th><th>{{ cy }} 사업연도 (원)</th></tr></thead>
+    {% for r in key_rows %}
+    <tr><td>{{ r.label }}</td><td class="n">{{ r.prior | fv }}</td><td class="n">{{ r.cur | fv }}</td><td class="n">{{ r.diff | fv }}</td>
+      <td class="n">{{ r.prior_won | fv }}</td><td class="n">{{ r.cur_won | fv }}</td></tr>
+    {% endfor %}
+    <tr><td>부채비율 (%)</td><td class="n">{{ debt_row.prior | fv }}</td><td class="n">{{ debt_row.cur | fv }}</td><td class="n">{{ debt_row.diff | fv }}</td><td colspan="2" class="src">부채총계 ÷ 자본총계 × 100. 자본총계가 0 이하이면 ‘자본잠식’으로 표시</td></tr>
+  </table>
+  <p class="note">* 억원 = 원 ÷ 1억, 소수 둘째 자리 반올림<sup class="as">A</sup>. 영업이익은 표준손익계산서 ‘영업손익’, 당기순이익은 ‘당기순손익’ 값입니다.</p>
+
+  <h3>(4) 요약 손익 비교 (분석 지표)</h3>
+  <table>
+    <thead><tr><th style="width:22%">구분</th><th>{{ py }} 사업연도 (원)</th><th>{{ cy }} 사업연도 (원)</th><th>증감액 (원)</th><th>증감률</th></tr></thead>
+    {% for r in pl_rows %}
+    <tr><td>{{ r.label }}</td><td class="n">{{ r.prior | fv }}</td><td class="n">{{ r.cur | fv }}</td><td class="n">{{ r.diff | fv }}</td>
+      <td class="n">{{ r.turn if r.turn else (r.rate | fv) }}</td></tr>
+    {% endfor %}
+  </table>
+  <p class="note">* 증감률 = (당기 − 전기) ÷ |전기| × 100. 부호가 바뀌면 흑자전환·적자전환으로 표시. 영업외손익 = 영업외수익 − 영업외비용.</p>
+
+  <h3>(5) 판관비 주요 항목 (판매비와관리비)</h3>
+  <table>
+    <thead><tr><th style="width:20%">항목</th><th>{{ py }} 사업연도 (원)</th><th>{{ cy }} 사업연도 (원)</th><th>증감액 (원)</th><th>증감률</th><th>{{ py }} 매출 대비</th><th>{{ cy }} 매출 대비</th></tr></thead>
+    {% for r in sga_rows %}
+    <tr {% if r.is_total %}class="l0"{% endif %}><td>{{ r.label }}</td><td class="n">{{ r.prior | fv }}</td><td class="n">{{ r.cur | fv }}</td><td class="n">{{ r.diff | fv }}</td>
+      <td class="n">{{ r.rate | fv }}</td><td class="n">{{ r.share_p | fv }}</td><td class="n">{{ r.share_c | fv }}</td></tr>
+    {% endfor %}
+    {% for u in sga_unknown %}
+    <tr><td>{{ u.label }}</td><td class="n">{{ u.prior | fv }}</td><td class="n">{{ u.cur | fv }}</td><td colspan="4" class="src">금액 미확인 — 순위 판단에서 제외(부록 B)</td></tr>
+    {% endfor %}
+  </table>
+  <p class="note">* 주요 항목 = {{ cy }} 금액 상위 {{ sga_top_n }}개 표준 계정(담당자 확인 기준, Q-4-01). 나머지 계정은 ‘기타 (상위 {{ sga_top_n }}개 외 합계)’ 한 줄로 합산했습니다(= 판매비와관리비 합계 − 상위 {{ sga_top_n }}개; 표준손익계산서의 ‘37.기타’ 계정과는 다른 줄입니다). 전기에 없던 계정·당기에 없어진 계정은 Ⅷ장에 적었습니다. 매출 대비 비중 = 항목 ÷ 표준손익계산서 매출액 × 100.</p>
+</section>
+
+<!-- ═════════ III ═════════ -->
+<section class="newpage">
+  <h2>Ⅲ. 법인세 신고상황</h2>
+  <p class="note">* 법인세과세표준및세액조정계산서(코드별)와 법인세과세표준및세액신고서 기준. 단위 원.</p>
+  <table>
+    <thead><tr><th style="width:40%">구분</th><th>{{ py }} 사업연도 (원)</th><th>{{ cy }} 사업연도 (원)</th><th>근거 페이지 ({{ py }} / {{ cy }})</th></tr></thead>
+    {% for r in tax_rows %}
+    <tr {% if r.label in ('과세표준', '각사업연도 소득금액', '총부담세액(가감계)') %}class="l0"{% endif %}>
+      <td>{{ r.label }}</td><td class="n">{{ r.prior | fv }}</td><td class="n">{{ r.cur | fv }}</td><td class="src c">{{ r.src_pc }}</td></tr>
+    {% endfor %}
+  </table>
+  <h3>주요 비율</h3>
+  <table>
+    <thead><tr><th style="width:34%">구분</th><th>{{ py }} 사업연도</th><th>{{ cy }} 사업연도</th><th>계산식</th></tr></thead>
+    {% for p, c in ratio_rows %}
+    <tr><td>{{ c.label }}</td><td class="n">{{ p | fv }}</td><td class="n">{{ c | fv }}</td><td class="src">{{ c.formula or p.formula }}{% if p.note %} · {{ py }}: {{ p.note }}{% endif %}{% if c.note and c.flag %} · {{ cy }}: {{ c.note }}{% endif %}</td></tr>
+    {% endfor %}
+  </table>
+  {% for f in findings if f.id.startswith('R01') and f.kind in ('참고', '서식 간 차이') %}
+  <p class="note">* [{{ f.id }}] {{ f.detail }}</p>
+  {% endfor %}
+  {% if loss_diff %}
+  <div class="box warn"><b>※ 이월결손금 차이 표시</b>{{ cy }} 이월결손금(코드07)·과세표준·세액은 신고서에 적힌 값 그대로입니다. 이월결손금 금액이 {{ py }} 결손금과 {{ loss_diff.amount | won }}원 차이가 있어 담당자가 확인 중입니다(Ⅳ장 참조).</div>
+  {% endif %}
+  {% if P.local['local.total'].status == Status.NEEDS_CHECK %}
+  <p class="note">* {{ py }} 법인지방소득세: {{ py }} 세무조정계산서에 법인지방소득세 신고서가 없어 «확인 필요»로 표시했습니다. 산출세액 비율로 추정하지 않았습니다.</p>
+  {% endif %}
+  {% if r15 %}
+  <div class="box chkbox"><b>확인 필요 — 기납부세액</b>{{ r15.detail }}<div class="src">근거: {% for e in r15.evidence %}{{ e.short() }}{% if not loop.last %}; {% endif %}{% endfor %}</div></div>
+  {% endif %}
+</section>
+
+<!-- ═════════ IV ═════════ -->
+<section>
+  <h2>Ⅳ. 이월결손금</h2>
+  {% if loss_rows %}
+  <p class="note">* {{ cy }} 자본금과적립금조정명세서(갑) Ⅱ.결손금 계산서 기준. 단위 원. 숫자는 원문 그대로이며 보정하지 않았습니다.</p>
+  <table>
+    <thead><tr><th>발생 사업연도</th><th>발생액</th><th>당기 공제액</th><th>감소 계</th><th>잔액</th><th>근거</th></tr></thead>
+    {% for r in loss_rows %}
+    <tr><td class="c">{{ r.year }}</td><td class="n">{{ r.occur | fv }}</td><td class="n">{{ r.used | fv }}</td><td class="n">{{ r.dec | fv }}</td><td class="n">{{ r.bal | fv }}</td><td class="src c">{{ cy }} p{{ r.page }}</td></tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p>{{ cy }} 사업연도 자본금과적립금조정명세서(갑)의 결손금 계산서에 기재된 결손금이 없고, 세액조정계산서 이월결손금(코드07) 칸도 비어 있습니다(근거: {{ C.tc['tc.07'] | cite }}).</p>
+  {% endif %}
+  {% if loss_diff %}
+  <div class="box warn"><b>※ 차이 표시 — 원인 확인 중 (Q-003)</b>
+    <table>
+      <thead><tr><th style="width:55%">비교 항목</th><th>금액</th><th>근거</th></tr></thead>
+      {% for r in loss_compare %}<tr><td>{{ r.label }}</td><td class="n">{{ r.v.amount | won }}</td><td class="src">{{ r.v | cite }}</td></tr>{% endfor %}
+      <tr class="l0"><td>차이 (이월결손금 − {{ py }} 결손)</td><td class="n">{{ loss_diff.amount | won }}</td><td class="src">{{ loss_diff.formula }}</td></tr>
+    </table>
+    차이 원인은 확인 중입니다. 어느 금액이 맞는지에 대한 판단은 하지 않았습니다.
+  </div>
+  {% endif %}
+</section>
+
+<!-- ═════════ V ═════════ -->
+<section class="newpage">
+  <h2>Ⅴ. 소득금액조정</h2>
+  {% for y in adj_years %}
+  <h3>{{ y.year }} 사업연도</h3>
+  {% if y.adj.present %}
+  <table>
+    <thead><tr><th style="width:17%">구분</th><th style="width:16%">과목</th><th style="width:12%">금액</th><th style="width:11%">소득처분</th><th style="width:22%">조정내용</th><th>근거</th></tr></thead>
+    {% for it in y.adj.add %}
+    <tr><td>익금산입·손금불산입</td><td>{{ it.subject }}</td><td class="n">{{ it.amount | fv }}</td><td class="c">{{ it.disposal }}</td><td class="small">{{ it.detail or '' }}</td><td class="src">{{ it.amount | cite }}</td></tr>
+    {% else %}
+    <tr><td>익금산입·손금불산입</td><td colspan="4">조정사항 없음 (서식 칸 공란, Q-010-1)</td><td class="src">{{ y.year }} p{{ y.adj.page }}</td></tr>
+    {% endfor %}
+    {% for it in y.adj.deduct %}
+    <tr><td>손금산입·익금불산입</td><td>{{ it.subject }}</td><td class="n">{{ it.amount | fv }}</td><td class="c">{{ it.disposal }}</td><td class="small">{{ it.detail or '' }}</td><td class="src">{{ it.amount | cite }}</td></tr>
+    {% else %}
+    <tr><td>손금산입·익금불산입</td><td colspan="4">조정사항 없음 (서식 칸 공란, Q-010-1)</td><td class="src">{{ y.year }} 소득금액조정합계표 p{{ y.adj.page }}</td></tr>
+    {% endfor %}
+    {% if y.adj.add_total %}<tr class="l0"><td colspan="2">익금산입·손금불산입 합계</td><td class="n">{{ y.adj.add_total | fv }}</td><td colspan="3" class="src">{{ y.adj.add_total | cite }}</td></tr>{% endif %}
+  </table>
+  {% else %}
+  <div class="box chkbox"><b>«확인 필요» — 서식 없음 (Q-010-2)</b>{{ y.note.note }}. 참고로 {{ y.year }} 세액조정계산서의 익금산입(코드02)·손금산입(코드03) 칸은 비어 있습니다. 이 사실만으로 ‘조정 없음’이라고 단정하지 않았습니다.</div>
+  {% endif %}
+  {% endfor %}
+  <h3>참고: 기업업무추진비</h3>
+  <table>
+    <thead><tr><th>사업연도</th><th>기업업무추진비 해당금액</th><th>한도초과액</th><th>근거</th></tr></thead>
+    {% for e in ent %}<tr><td class="c">{{ e.year }}</td><td class="n">{{ e.amount | fv }}</td><td class="n">{{ e.excess | fv }}</td><td class="src">{{ e.amount | cite }}{% if e.amount.note %} · {{ e.amount.note }}{% endif %}</td></tr>{% endfor %}
+  </table>
+</section>
+
+<!-- ═════════ VI ═════════ -->
+<section>
+  <h2>Ⅵ. 공제·감면세액</h2>
+  {% for y in cr_years %}
+  <h3>{{ y.year }} 사업연도</h3>
+  {% if y.cr.present %}
+  <table>
+    <thead><tr><th style="width:20%">공제·감면 구분</th><th style="width:13%">근거 법조항</th><th>코드</th><th>구분</th><th>감면율</th><th>당기발생·이월</th><th>적용 공제·감면세액</th><th>근거</th></tr></thead>
+    {% for r in y.cr.rows %}
+    <tr><td>{{ r.name }}</td><td>{{ r.law }}</td><td class="c">{{ r.code }}</td><td>{{ r.section }}</td><td class="c">{{ r.rate | fv if r.rate else '–' }}</td>
+      <td class="n">{% for k in ('전기이월액', '당기발생액') %}{% if r.vals.get(k) %}{{ k }} {{ r.vals[k] | fv }}<br>{% endif %}{% endfor %}</td>
+      <td class="n">{{ r.amount | fv }}</td><td class="src">{{ r.amount | cite }}</td></tr>
+    {% else %}<tr><td colspan="8">금액이 기재된 공제·감면 항목 없음</td></tr>{% endfor %}
+    {% if y.cr.total %}<tr class="l0"><td colspan="6">공제감면세액 총계</td><td class="n">{{ y.cr.total | fv }}</td><td class="src">{{ y.cr.total | cite }}</td></tr>{% endif %}
+  </table>
+  <p class="note">* ‘적용 공제·감면세액’은 합계표의 ④감면세액·⑦공제세액 열 값입니다. ⑥당기발생액·⑤전기이월액은 해당 연도 세액에서 뺀 금액이 아니므로 따로 표시했습니다.</p>
+  {% endif %}
+  {% if y.applied_tc is not none %}
+  <p>세액조정계산서 기준 적용된 공제·감면세액: <b>{{ y.applied_tc | fv }}원</b> (최저한세 적용대상 코드17 {{ y.T['tc.17'] | fv }} + 적용제외 코드19 {{ y.T['tc.19'] | fv }}; 근거 {{ y.T['tc.17'] | cite }}).
+  {% if not y.cr.present %}이 연도 PDF에는 공제감면세액합계표(갑)가 없어, 같은 의미(해당 연도 세액에서 공제·감면된 금액)의 세액조정계산서 값으로 확인했습니다. 공제·감면 종류별 내역은 서식이 없어 표시하지 않습니다.{% endif %}</p>
+  {% elif y.note %}
+  <div class="box chkbox"><b>«확인 필요» — 서식 없음 (Q-010-2)</b>{{ y.note.note }}.</div>
+  {% endif %}
+  {% endfor %}
+</section>
+
+<!-- ═════════ VII ═════════ -->
+<section class="newpage">
+  <h2>Ⅶ. 요약 코멘트</h2>
+  <h3>주요 지표 그래프</h3>
+  {% for ch in charts %}
+  <div class="chart"><div class="ttl">{{ ch.title }}</div>
+    {% if ch.img %}<img src="data:image/png;base64,{{ ch.img }}" alt="{{ ch.title }}">{% endif %}
+    {% for m in ch.missing %}<div class="note"><span class="chk">«확인 필요»</span> {{ m }}</div>{% endfor %}
+  </div>
+  {% endfor %}
+  <p class="note">* 그래프 값은 표준재무제표 기준입니다. 확인되지 않은 값은 막대를 그리지 않고 ‘확인 필요’로 표시했습니다.</p>
+</section>
+<section class="newpage">
+  <h3 style="margin-top:0">코멘트</h3>
+  <p class="note">* 문장 속 재무 숫자는 표준재무상태표·표준손익계산서 기준이며, 단락마다 근거 서식을 적었습니다. 금액 단위 원.</p>
+  {% for c in comments %}
+  <div class="comment">
+    <h3>{{ c.title }}</h3>
+    {% for s in c.sentences %}<p>{{ s | replace('ᴬ', '') }}{% if 'ᴬ' in s %}<sup class="as">A</sup>{% endif %}</p>{% endfor %}
+    <div class="src">근거: {{ c.sources | join(' · ') }}{% if c.marks %} · 가정 {{ c.marks | join(', ') }}{% endif %}</div>
+  </div>
+  {% endfor %}
+</section>
+
+<!-- ═════════ VIII ═════════ -->
+<section class="newpage">
+  <h2>Ⅷ. 재무제표 주요 특이사항</h2>
+
+  <h3>1. 매출처(외상매출금) 구성</h3>
+  <table>
+    <thead><tr><th>구분</th><th>{{ py }} 사업연도</th><th>{{ cy }} 사업연도</th></tr></thead>
+    <tr><td>기말 잔액이 있는 거래처 수</td>
+      {% for yr in [py, cy] %}<td class="n">{% set x = ar[yr] %}{% if not x %}<span class="blank">명세서 없음</span>{% elif x.held %}<span class="chk">«확인 필요»</span> <span class="small">(확인된 {{ x.n_known }}곳 + 금액 가림 {{ x.n_masked }}곳)</span>{% else %}{{ x.n_bal }}곳{% endif %}</td>{% endfor %}</tr>
+    <tr><td>당기 외상매출이 발생한 거래처 수</td>
+      {% for yr in [cy, py] %}{% set x = ar[yr] %}<td class="n">{% if not x %}<span class="blank">명세서 없음</span>{% elif x.held %}<span class="chk">«확인 필요»</span>{% elif x.n_inc is none %}<span class="blank">명세서에 증감 열 없음</span>{% else %}{{ x.n_inc }}곳{% endif %}</td>{% endfor %}</tr>
+    <tr><td>기말 잔액 최대 거래처 (비중)</td>
+      {% for yr in [cy, py] %}{% set x = ar[yr] %}<td class="n">{% if not x %}<span class="blank">명세서 없음</span>{% elif x.held %}<span class="chk">«확인 필요»</span>{% elif x.top %}{{ x.top.partner_code }} {{ x.top.partner }} ({{ '%.1f' % x.top_share }}%){% else %}–{% endif %}</td>{% endfor %}</tr>
+    <tr><td>매출채권 ÷ 매출액</td><td class="n">{{ rec[0] | fv }}</td><td class="n">{{ rec[1] | fv }}</td></tr>
+  </table>
+  <p class="note">* 거래처 구성은 결산부속명세서 외상매출금명세서{% for yr in [cy, py] %}{% if ar[yr] %} ({{ yr }} p{{ ar[yr].page }}){% endif %}{% endfor %} 기준이며, 외상으로 발생하지 않은 매출은 포함되지 않습니다. 매출채권 비율 = 표준서식 코드9 ÷ 코드1{% if rec[1].flag %} — {{ cy }}: {{ rec[1].note }}{% endif %}.
+  {% for yr in [cy, py] %}{% if ar[yr] and ar[yr].held %}{{ yr }} 명세서는 거래처코드 {{ ar[yr].masked_codes | join(', ') }}의 금액 칸이 회색 처리되어 있어 거래처 수·최대 거래처 비중을 확정하지 않았습니다(부록 B). {% endif %}{% endfor %}</p>
+  {% if ar[cy] and ar[py] and not ar[cy].held and not ar[py].held and ar[cy].top and ar[py].top %}
+  <p>기말 외상매출금 잔액이 있는 거래처는 {{ py }}년 말 {{ ar[py].n_bal }}곳에서 {{ cy }}년 말 {{ ar[cy].n_bal }}곳으로 {{ '늘었고' if ar[cy].n_bal > ar[py].n_bal else ('줄었고' if ar[cy].n_bal < ar[py].n_bal else '같고') }},
+  최대 거래처 비중은 {{ '%.1f' % ar[py].top_share }}%에서 {{ '%.1f' % ar[cy].top_share }}%로 {{ '낮아져 거래처가 분산되었습니다' if ar[cy].top_share < ar[py].top_share else '높아져 거래처 집중도가 커졌습니다' }}.</p>
+  {% endif %}
+
+  <h3>2. 가수금 · 주주·임원·직원 차입금</h3>
+  {% if sus[cy].stds or sus[py].stds or sus[cy].rows or sus[py].rows %}
+  <table>
+    <thead><tr><th>사업연도</th><th>표준 계정 (코드)</th><th>금액 (원)</th><th>근거</th></tr></thead>
+    {% for yr in [cy, py] %}{% for v in sus[yr].stds %}
+    <tr><td class="c">{{ yr }}</td><td>{{ v.label }}</td><td class="n">{{ v | fv }}</td><td class="src">{{ v | cite }}</td></tr>
+    {% endfor %}{% for nm, v in sus[yr].matches %}
+    <tr><td class="c">{{ yr }}</td><td>{{ v.label }} (코드 {{ v.key.split('.')[-1] }}) — {{ nm }} 합계와 금액 일치</td><td class="n">{{ v | fv }}</td><td class="src">{{ v | cite }}</td></tr>
+    {% endfor %}{% if not sus[yr].stds and not sus[yr].matches %}
+    <tr><td class="c">{{ yr }}</td><td colspan="2">가수금명세서 없음 · 표준재무상태표 주주·임원·직원차입금(236·292) 칸 공란</td><td class="src">{{ yr }} 표준재무상태표</td></tr>
+    {% endif %}{% endfor %}
+  </table>
+  {% if sus[cy].rows or sus[py].rows %}
+  <table>
+    <thead><tr><th>사업연도</th><th>명세서</th><th>거래처코드</th><th>거래처명</th><th>기초</th><th>당기 증가</th><th>당기 감소</th><th>기말</th><th>근거</th></tr></thead>
+    {% for yr in [cy, py] %}{% for r in sus[yr].rows %}
+    <tr><td class="c">{{ yr }}</td><td class="small">{{ r.schedule }}</td><td class="c">{{ r.partner_code }}</td><td class="c">{{ r.partner }}</td>
+      <td class="n">{{ r.vals.get('기초액') | fv }}</td><td class="n">{{ r.vals.get('당기증가') | fv }}</td><td class="n">{{ r.vals.get('당기감소') | fv }}</td><td class="n">{{ r.vals.get('금액') | fv }}</td>
+      <td class="src">p{{ r.page }}</td></tr>
+    {% endfor %}{% endfor %}
+  </table>
+  {% endif %}
+  <p class="note">* 거래처코드별 내역은 결산부속명세서 기준(Q-013-1). 명세서 합계는 표준서식 해당 코드와 대조했습니다(부록 C). 표기 방식(예: 대표이사 가수금 병기)은 담당자 확인 중이라 표준 계정명으로 적었습니다(Q-013-2).</p>
+  {% else %}
+  <p>두 사업연도 모두 표준재무상태표에 주주·임원·직원 단기·장기차입금 금액이 없고, 결산부속명세서에 가수금명세서가 없습니다.</p>
+  {% endif %}
+
+  <h3>3. 가지급금</h3>
+  {% for yr in [cy, py] %}{% set l = loan[yr] %}
+  {% if l.deemed or l.sch_rows %}
+  <p><b>{{ yr }} 사업연도</b> — 특수관계인 가지급금 기말 잔액 {{ '{:,}'.format(l.total) if l.total else '«확인 필요»' }}원{% if l.share %} (매출액 대비 {{ l.share | fv }}){% endif %}.</p>
+  <table>
+    <thead><tr><th>근거 서식</th><th>거래처(코드) / 성명</th><th>직책·관계</th><th>기말 잔액 (원)</th><th>근거</th></tr></thead>
+    {% for d in l.deemed %}<tr><td>가지급금 등의 인정이자 조정명세서(을)</td><td>{{ d.name }}</td><td class="c">{{ d.role }}</td><td class="n">{{ d.balance | fv }}</td><td class="src">{{ d.balance | cite }}</td></tr>{% endfor %}
+    {% for r in l.sch_rows %}<tr><td>결산부속명세서 {{ r.schedule }}</td><td>{{ r.partner }} ({{ r.partner_code }})</td><td class="c">–</td><td class="n">{{ r.vals.get('금액') | fv }}</td><td class="src">p{{ r.page }}</td></tr>{% endfor %}
+    {% for v in l.std_match %}<tr><td>표준재무상태표 (금액 일치 계정)</td><td>{{ v.label }} (코드 {{ v.key.split('.')[-1] }})</td><td class="c">–</td><td class="n">{{ v | fv }}</td><td class="src">{{ v | cite }}</td></tr>{% endfor %}
+  </table>
+  <p class="note">* 가지급금은 세무서식 「가지급금 등의 인정이자 조정명세서(을)」의 특수관계인별 기말 잔액을 기준으로 했습니다.
+  {% if l.sch_rows %}결산부속명세서 대여금 명세서와 {{ '거래처·금액이 일치합니다' if l.agree else '금액이 다릅니다(부록 B)' }}. {% else %}이 연도 결산부속명세서에는 대여금·가지급금 명세서가 없습니다. {% endif %}
+  {% if l.std_match %}표준재무상태표에는 같은 금액이 ‘{{ l.std_match[0].label }}’ 계정으로 분류되어 있습니다(계정명만으로 가지급금이라고 판단하지 않고, 금액 일치로 대응만 표시).{% else %}표준재무상태표에서 같은 금액의 계정은 찾지 못했습니다.{% endif %}</p>
+  {% elif l.none %}
+  <p><b>{{ yr }} 사업연도</b> — 해당 없음: 결산부속명세서({{ l.pages }})에 가지급금·대여금 명세서가 없고, 인정이자조정명세서도 없으며, 표준재무상태표 주주·임원·직원단기대여금(코드27) 칸이 비어 있습니다.</p>
+  {% else %}
+  <p><b>{{ yr }} 사업연도</b> — {{ CHECK }} 표준재무상태표 주주·임원·직원단기대여금(코드27)에 금액이 있으나 거래처별 명세를 찾지 못했습니다.</p>
+  {% endif %}
+  {% endfor %}
+
+  <h3>4. 판매비와관리비 계정 변동 (소멸·신규)</h3>
+  {% if sga_gone or sga_new %}
+  <table>
+    <thead><tr><th>구분</th><th>계정 (코드)</th><th>{{ py }} 사업연도 (원)</th><th>{{ cy }} 사업연도 (원)</th><th>근거</th></tr></thead>
+    {% for v in sga_gone %}<tr><td class="c">전기에만 있음(당기 없음)</td><td>{{ v.label }} ({{ v.key.split('.')[-1] }})</td><td class="n">{{ v | fv }}</td><td class="n">–</td><td class="src">{{ v | cite }}</td></tr>{% endfor %}
+    {% for v in sga_new %}<tr><td class="c">당기 신규 발생</td><td>{{ v.label }} ({{ v.key.split('.')[-1] }})</td><td class="n">–</td><td class="n">{{ v | fv }}</td><td class="src">{{ v | cite }}</td></tr>{% endfor %}
+  </table>
+  <p class="note">* 표준손익계산서 판매비와관리비 세부 계정 중 한 해에만 금액이 있는 계정입니다(Q-4-01).</p>
+  {% else %}
+  <p>전기·당기 판매비와관리비 계정 구성이 같습니다(한 해에만 있는 계정 없음).</p>
+  {% endif %}
+
+  <h3>5. 자본잠식 여부</h3>
+  {% if impair.now %}
+  <p>{{ cy }}년 말 자본총계 {{ impair.cur_eq | fv }}원이 자본금 {{ impair.cap | fv }}원보다 작아 부분 자본잠식 상태입니다(자본잠식률 {{ impair.rate | fv }} = (자본금 − 자본총계) ÷ 자본금).
+  {% if impair.prior_eq.amount is not none %}{{ py }}년 말 자본총계는 {{ impair.prior_eq | fv }}원이었습니다.{% endif %}
+  해소에 필요한 정리액: {{ CHECK }} — 해소 목표(자본총계 ≥ 자본금 / ≥ 0 / 부채비율 기준)가 정해지지 않아 계산하지 않았습니다(Q-005). 가수금·주주 차입금 잔액은 위 2번을 참고하세요.</p>
+  {% else %}
+  <p>{{ cy }}년 말 자본총계 {{ impair.cur_eq | fv }}원으로 자본금 {{ impair.cap | fv }}원 이상이므로 자본잠식이 아닙니다.
+  {% if impair.prior_eq.amount is not none and impair.prior_eq.amount <= 0 %}{{ py }}년 말에는 자본총계 {{ impair.prior_eq | fv }}원으로 자본잠식 상태였으나 해소되었습니다.{% endif %}
+  당기에 자본잠식이 아니므로 가수금 정리 필요액은 계산하지 않았습니다.</p>
+  {% endif %}
+</section>
+
+<!-- ═════════ 부록 ═════════ -->
+<section class="newpage">
+  <h2>부록 A. 가정 사항</h2>
+  <table>
+    <thead><tr><th>ID</th><th>가정 내용</th><th>연결 질문</th></tr></thead>
+    {% for a in q.assumptions %}<tr><td class="id">{{ a.id }}</td><td>{{ a.text }}</td><td class="id">{{ a.q }}</td></tr>{% endfor %}
+  </table>
+
+  <h2 style="margin-top:7mm">부록 B. 검증 경고 목록 ({{ nwarn }}건)</h2>
+  <p class="note">* 경고마다 파일·연도·서식·페이지·항목·PDF에 보이는 표시값을 적고, PDF에 실제로 보이는 내용인지(회색 칸·글자 표기·서식 간 숫자 차이) 추출 과정의 문제인지 판단했습니다. 확정할 수 없는 값은 «확인 필요»로 두고 그 값에 의존하는 계산만 보류했습니다.</p>
+  <table class="small">
+    <thead><tr><th style="width:5%">No</th><th style="width:8%">구분</th><th style="width:15%">연도·서식·페이지</th><th style="width:16%">항목</th><th style="width:9%">PDF 표시값</th><th style="width:20%">판단</th><th>조치 · 내용</th></tr></thead>
+    {% for w in warnings %}
+    <tr><td class="id">{{ w.id }}</td><td class="id">{{ w.kind }}</td><td>{{ w.year }} {{ w.form }} {% if w.page is number %}p{{ w.page }}{% else %}{{ w.page }}{% endif %}</td>
+      <td>{{ w.item }}</td><td class="c">{{ w.shown }}</td><td>{{ w.judge }}</td><td>{{ w.action }}{% if w.note %} · {{ w.note }}{% endif %}{% if w.q %} ({{ w.q }}){% endif %}</td></tr>
+    {% endfor %}
+  </table>
+
+  <h2 style="margin-top:7mm">부록 C. 대사(자료 간 맞춰보기) 결과</h2>
+  <table>
+    <thead><tr><th>규칙</th><th>내용</th><th>결과</th><th>상세</th></tr></thead>
+    {% for f in findings %}<tr><td class="c small">{{ f.id }}</td><td>{{ f.title }}</td>
+      <td class="c">{% if f.ok is true %}<span class="tag t-ok">일치</span>{% elif f.ok is false %}<span class="tag t-bad">{{ f.kind if f.kind != '대사' else '차이' }}</span>{% else %}<span class="tag t-ref">{{ f.kind }}</span>{% endif %}</td>
+      <td class="small">{{ f.detail }}</td></tr>{% endfor %}
+  </table>
+</section>
+
+<section class="newpage">
+  <h2>부록 D. 질문 기록</h2>
+  <p class="note">* 담당자 질문의 답변 상태: <span class="tag t-ans">답변 있음</span> <span class="tag t-unc">불명확·충돌</span> <span class="tag t-none">답변 없음</span>.</p>
+  <table>
+    <thead><tr><th>ID</th><th style="width:22%">주제</th><th>상태</th><th>받은 답변</th><th>보고서 반영</th></tr></thead>
+    {% for x in q.questions %}
+    <tr><td class="id small">{{ x.id }}</td><td>{{ x.topic }}{% if x.scope == '범위 밖' %} <span class="small">(범위 밖)</span>{% endif %}</td>
+      <td class="c"><span class="tag {{ 't-ans' if x.status == '답변 있음' else ('t-unc' if x.status == '불명확·충돌' else 't-none') }}">{{ x.status }}</span></td>
+      <td class="small">{% for a in x.answers %}“{{ a.text }}” ({{ a.at }}){% if not loop.last %}<br>{% endif %}{% else %}–{% endfor %}</td>
+      <td class="small">{{ x.impl }}</td></tr>
+    {% endfor %}
+  </table>
+</section>
+
+<section class="newpage">
+  <h2>부록 E. 근거 대장</h2>
+  <p class="note">* 보고서에 사용한 모든 값의 근거입니다. ‘원문’은 PDF에서 읽은 줄 그대로입니다. 계산값은 계산식을 적었습니다.</p>
+  <table class="small">
+    <thead><tr><th style="width:6%">장</th><th style="width:16%">항목</th><th style="width:12%">값</th><th style="width:7%">상태</th><th style="width:30%">근거 (사업연도 · 서식 · 페이지 · 항목)</th><th>원문 / 계산식</th></tr></thead>
+    {% for sec, v in ledger %}
+    <tr><td class="id">{{ sec }}</td><td>{{ v.label }}</td><td class="n">{{ v | fv }}</td><td class="id">{{ v.status.value }}</td>
+      <td>{% for e in v.evidence %}{{ e.short() }}{% if not loop.last %}<br>{% endif %}{% endfor %}</td>
+      <td class="src">{% for e in v.evidence %}{{ e.raw[:90] }}{% if not loop.last %}<br>{% endif %}{% endfor %}{% if v.formula %}{{ v.formula }}{% endif %}{% if v.note %} · {{ v.note }}{% endif %}</td></tr>
+    {% endfor %}
+  </table>
+</section>
+
+</body>
+</html>

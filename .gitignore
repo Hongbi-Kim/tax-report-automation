@@ -1,0 +1,20 @@
+# 과제 입력 자료 (세무조정계산서 PDF·요구사항·출력예시) — 공개하지 않음
+tax/
+
+# 실행 결과 전체 — 공개용 최종 보고서는 results/에 따로 복사해 둠
+out/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+*.egg-info/
+
+# 도구·OS
+.deepeval/
+.DS_Store
+.idea/
+.vscode/
+.claude/

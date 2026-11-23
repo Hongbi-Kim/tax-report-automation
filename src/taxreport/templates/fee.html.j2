@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>조정료청구서 · {{ C.basic.name.text }} · {{ cy }}</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm 20mm 16mm;
+    @bottom-left { content: "{{ firm.issuer }}"; font: 7.5pt "Pretendard", sans-serif; color: #6b7280; }
+    @bottom-right { content: counter(page) " / " counter(pages); font: 7.5pt "Pretendard", sans-serif; color: #6b7280; } }
+  :root { --ink:#1f2937; --muted:#6b7280; --line:#d1d5db; --soft:#f3f4f6; --accent:#1e3a5f; --chk:#b42318; --as:#1d4ed8; }
+  body { font-family: "Pretendard", "Apple SD Gothic Neo", sans-serif; color: var(--ink); font-size: 9.4pt; line-height: 1.55; margin: 0; background: #fff; }
+  h1 { font-size: 22pt; text-align: center; letter-spacing: .3em; margin: 4mm 0 8mm; color: var(--accent); }
+  h2 { font-size: 11.5pt; color: var(--accent); border-bottom: 2px solid var(--accent); padding-bottom: 1.5mm; margin: 7mm 0 3mm; }
+  table { width: 100%; border-collapse: collapse; margin: 1.5mm 0 3mm; font-size: 9pt; }
+  th { white-space: nowrap; background: var(--soft); font-weight: 600; border-top: 1.5px solid var(--ink); border-bottom: 1px solid var(--ink); padding: 1.8mm 2mm; }
+  td { border-bottom: 1px solid var(--line); padding: 1.6mm 2mm; vertical-align: top; }
+  td.n { text-align: right; white-space: nowrap; }
+  td.c { text-align: center; }
+  .src { color: var(--muted); font-size: 7.6pt; }
+  .chk { color: var(--chk); font-weight: 600; white-space: nowrap; }
+  .blank { color: #9ca3af; }
+  sup.as { color: var(--as); font-weight: 700; }
+  .parties { display: flex; gap: 6mm; }
+  .parties > div { flex: 1; border: 1px solid var(--line); padding: 3mm 4mm; }
+  .parties b { display: block; color: var(--accent); margin-bottom: 1mm; }
+  .total { border: 2px solid var(--accent); padding: 4mm 5mm; margin: 5mm 0; display: flex; justify-content: space-between; align-items: center; font-size: 12pt; font-weight: 700; }
+  .box { border-left: 3px solid var(--chk); background: #fef2f2; padding: 2.5mm 3.5mm; margin: 3mm 0; font-size: 8.6pt; }
+  tr.on td { background: #eff6ff; font-weight: 600; }
+  .note { font-size: 8pt; color: var(--muted); }
+</style>
+</head>
+<body>
+  <h1>조정료 청구서</h1>
+  <div class="parties">
+    <div><b>청구 대상</b>{{ C.basic.name.text }} 귀중<br>대표자 {{ C.basic.ceo.text }} · 사업자등록번호 {{ C.basic.biz_no.text }}<br>{{ C.basic.address.text }}</div>
+    <div><b>청구인</b>{{ firm.issuer }}<br>대상 업무: {{ cy }} 사업연도({{ C.basic.period.text | replace("~", " ~ ") }}) 법인세 세무조정</div>
+  </div>
+
+  <div class="total"><span>청구 금액</span><span>{{ fee.total | fv }}</span></div>
+  {% if fee.total.status == Status.NEEDS_CHECK %}
+  <div class="box"><b>청구 금액이 아직 확정되지 않았습니다.</b> 기본보수는 보수표로 계산했지만, 공제·감면 가산 비율과 부가가치세 처리 방법이 정해지지 않았습니다. 확정 전에는 고객에게 발송하지 않습니다.</div>
+  {% endif %}
+
+  <h2>1. 청구 내역</h2>
+  <table>
+    <thead><tr><th style="width:38%">구분</th><th>금액(원)</th><th>산정 방법</th></tr></thead>
+    <tr><td>기본보수</td><td class="n">{{ fee.base_fee | fv }}</td><td class="src">{{ fee.base_fee.formula or fee.base_fee.note }}{% if fee.base_fee.assumption %} · {{ fee.base_fee.assumption }}{% endif %}</td></tr>
+    {% for s in fee.surcharges %}
+    <tr><td>가산보수 — {{ s.row.name }} (감면세액 {{ s.row.amount.amount | won }}원)</td><td class="n">{{ s.v | fv }}</td><td class="src">{{ s.v.formula or s.v.note }}</td></tr>
+    {% else %}
+    <tr><td>가산보수 (공제·감면)</td><td class="n">0</td><td class="src">공제·감면세액 없음</td></tr>
+    {% endfor %}
+    <tr><td><b>조정료 합계(공급가액)</b></td><td class="n">{{ fee.supply | fv }}</td><td class="src">{{ fee.supply.formula or fee.supply.note }}</td></tr>
+    <tr><td>부가가치세</td><td class="n">{{ fee.vat | fv if fee.vat else '–' }}</td><td class="src">{{ fee.vat.note if fee.vat else '' }}</td></tr>
+  </table>
+
+  <h2>2. 납부 안내</h2>
+  <table>
+    <tr><td style="width:38%">CMS 출금일</td><td>{{ fee.cms | fv }}</td><td class="src">{{ fee.cms.note or '' }}</td></tr>
+    <tr><td>피드백 요청일</td><td>{{ fee.fb | fv }}</td><td class="src">{{ fee.fb.note or '' }}</td></tr>
+  </table>
+
+  <h2>3. 상세내역 — 기본보수 산정 근거</h2>
+  <table>
+    <thead><tr><th style="width:38%">항목</th><th>금액(원)</th><th>근거</th></tr></thead>
+    <tr><td>당기 매출액</td><td class="n">{{ fee.rev | fv }}</td><td class="src">{{ fee.rev | cite }}</td></tr>
+    <tr><td>당기 자산총계</td><td class="n">{{ fee.assets | fv }}</td><td class="src">{{ fee.assets | cite }}</td></tr>
+    <tr><td>자산총계 × 1/2</td><td class="n">{{ fee.half | fv }}</td><td class="src">{{ fee.half.formula }}</td></tr>
+    <tr><td><b>기준금액</b> (둘 중 큰 금액)</td><td class="n"><b>{{ fee.basis | fv }}</b></td><td class="src">{{ fee.basis.note }}</td></tr>
+  </table>
+  <table>
+    <thead><tr><th>구간</th><th>기준금액</th><th>기본보수</th></tr></thead>
+    {% for b in fee.brackets %}
+    <tr class="{{ 'on' if loop.index == fee.bracket_no else '' }}">
+      <td class="c">{{ loop.index }}</td>
+      <td>{{ (b['from'] // 100000000) | string + '억원 이상' if b['from'] else '' }}{{ ' ' if b['from'] and b['to'] else '' }}{{ (b['to'] // 100000000) | string + '억원 미만' if b['to'] else '' }}</td>
+      <td>{% if b.special %}{{ b.special }}{% else %}{{ '{:,}'.format(b.base) }}원{% if b.rate %} + {{ (b.over // 100000000) }}억원 초과액 × {{ '%g' % (b.rate * 10000) }}/10,000{% endif %}{% endif %}</td></tr>
+    {% endfor %}
+  </table>
+  <p class="note">* 보수표는 {{ firm.issuer }} 담당자 회신(2026-11-21) 기준입니다. 매출액·자산총계는 당기 표준손익계산서·표준재무상태표 값입니다.
+  {% if fee.base_fee.assumption %}<sup class="as">A</sup> 원 미만 금액은 절사했습니다(가정, 처리 기준 확인 중).{% endif %}</p>
+
+  <h2>4. 상세내역 — 공제·감면 가산 대상</h2>
+  <table>
+    <thead><tr><th>공제·감면 구분</th><th>근거 법조항</th><th>공제·감면세액(원)</th><th>근거</th></tr></thead>
+    {% for s in fee.surcharges %}
+    <tr><td>{{ s.row.name }}</td><td>{{ s.row.law }}</td><td class="n">{{ s.row.amount | fv }}</td><td class="src">{{ s.row.amount | cite }}</td></tr>
+    {% else %}<tr><td colspan="4">공제·감면 없음</td></tr>{% endfor %}
+  </table>
+</body>
+</html>
